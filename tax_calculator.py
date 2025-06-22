@@ -3,31 +3,33 @@ import pandas as pd
 from tax_utility import get_psa, get_tax_brackets, psa_start_rate, psa_upper_limit
 
 def main(): 
-    # income = input("Enter your annual income: ")
-    # print(saving_allowance(income))
+    # for manual testing the functions in this script
 
-    incomes = [12569, 12570, 12571, 13000, 17570, 17571]
+    salary = 14500 # if pension is NPA (taken before tax, input annual income - pension; else just input annual income)
+    interest_earned = 2500
+    isa_interest_earned = 0
+    taxable_interest = interest_earned - isa_interest_earned
+    total_taxable_income = salary + taxable_interest
 
-    # for income in incomes: 
-    #     saving_allowance_ = saving_allowance(income)
-    #     print(f'Income: {income}, Saving Allowance: {saving_allowance_}')
-
-    # for income in incomes: 
-    #     interest_earned = 1000
-    #     # tax_owed = tax_from_saving_interest(income, interest_earned)
-        # print(f'Income: {income}, Interest Earned: {interest_earned}')
-
-    # Example usage:
-    salary = 125145 # if pension is NPA (taken before tax, input annual income - pension; else just input annual income)
     print(f"Income: £{salary}")
     print('Tax from salary')
     print(f"Tax Due: £{calculate_income_tax(salary):.2f}")
     print(f"Tax Due per month: £{calculate_income_tax(salary)/12:.2f}")
+    print('=====================================================')
+    
+    print(f"Interest earned: £{interest_earned}")
+    print(f"Taxable interest: £{taxable_interest}")
+    print(f"Saving allowance (excl ISA): £{get_saving_allowance(salary)}")
+    print(f"Tax from saving interest: £{tax_from_saving_interest(salary, interest_earned, isa_interest_earned)}")
+    # print(f"total tax payable: £{calculate_income_tax(salary+interest_earned)}")
+
+    # total tax payable
+    print(f"Total tax payable: £{calculate_income_tax(total_taxable_income)}")
     
 
 
 
-def saving_allowance(income): 
+def get_saving_allowance(income): 
     annual_income = int(income) if isinstance(income, (int, float)) else float(income)
 
     # calculate if there's any personal allowance base on income
@@ -76,7 +78,7 @@ def saving_allowance(income):
     # so if you earn interest on saving up to 17570 without any other income, you won't pay any tax on it
     # if you earn interest on saving above 17570, you will pay tax on any amount that exceeds 17570 based on the tax breackets
 
-def calculate_income_tax(income):
+def calculate_income_tax(non_saving_income, saving_interest=0):
     brackets = get_tax_brackets()
     tax_due = 0.0
 
@@ -92,27 +94,32 @@ def calculate_income_tax(income):
         # Taxable amount in this bracket
         taxable = min(income, upper) - lower
         bracket_tax = taxable * rate
+
+        if bracket_tax < 0: 
+            raise ValueError(f"The {row['bracket']} bracket is returning negative tax of {bracket_tax}. ")
+
         tax_due += bracket_tax
 
     return tax_due
 
-def tax_from_saving_interest(salary, interest_earned, saving_allowance, tax_free_interest=0):
+def tax_from_saving_interest(salary, interest_earned, isa_interest=0):
     """
     Calculate the tax owed from interest earned on savings.
     
     Parameters:
     - income: Annual income of the individual.
     - interest_earned: Total interest earned from savings.
-    - saving_allowance: The tax-free interest allowance based on the individual's income. (from saving_allowance function)
     - tax_free_interest: Optional; the amount of interest that is tax-free.
     
     Returns:
     - Tax owed from the interest earned.
     """
-    if not all(isinstance(x, (int, float)) for x in [salary, interest_earned, saving_allowance, tax_free_interest]): 
+    if not all(isinstance(x, (int, float)) for x in [salary, interest_earned, isa_interest]): 
         raise TypeError("All inputs must be numeric (int or float).")
 
-    taxable_interest = interest_earned - tax_free_interest - saving_allowance
+    saving_allowance = get_saving_allowance(salary)
+
+    taxable_interest = interest_earned - isa_interest - saving_allowance
     if taxable_interest < 0:
         taxable_interest = 0
 
