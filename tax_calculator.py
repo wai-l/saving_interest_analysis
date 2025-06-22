@@ -18,10 +18,13 @@ def main():
         # print(f'Income: {income}, Interest Earned: {interest_earned}')
 
     # Example usage:
-    income = 27655.68 # if pension is NPA (taken before tax, input annual income - pension; else just input annual income)
-    print(f"Income: £{income}")
-    print(f"Tax Due: £{calculate_income_tax(income):.2f}")
-    print(f'income by month: £{(income- calculate_income_tax(income))/12:.2f}')
+    salary = 125145 # if pension is NPA (taken before tax, input annual income - pension; else just input annual income)
+    print(f"Income: £{salary}")
+    print('Tax from salary')
+    print(f"Tax Due: £{calculate_income_tax(salary):.2f}")
+    print(f"Tax Due per month: £{calculate_income_tax(salary)/12:.2f}")
+    
+
 
 
 def saving_allowance(income): 
@@ -72,32 +75,6 @@ def saving_allowance(income):
     # on top of it, you still have the personal allownace of 12570 with tax rate of 0%
     # so if you earn interest on saving up to 17570 without any other income, you won't pay any tax on it
     # if you earn interest on saving above 17570, you will pay tax on any amount that exceeds 17570 based on the tax breackets
-    
-def tax_from_saving_interest(income, interest_earned, saving_allowance, tax_free_interest=0):
-    """
-    Calculate the tax owed from interest earned on savings.
-    
-    Parameters:
-    - income: Annual income of the individual.
-    - interest_earned: Total interest earned from savings.
-    - saving_allowance: The tax-free interest allowance based on the individual's income. (from saving_allowance function)
-    - tax_free_interest: Optional; the amount of interest that is tax-free.
-    
-    Returns:
-    - Tax owed from the interest earned.
-    """
-    if not all(isinstance(x, (int, float)) for x in [income, interest_earned, saving_allowance, tax_free_interest]): 
-        raise TypeError("All inputs must be numeric (int or float).")
-
-    taxable_interest = interest_earned - tax_free_interest - saving_allowance
-    if taxable_interest < 0:
-        taxable_interest = 0
-
-    taxable_income = income + taxable_interest
-
-    tax_brackets = get_tax_brackets()
-
-    return taxable_income
 
 def calculate_income_tax(income):
     brackets = get_tax_brackets()
@@ -118,6 +95,36 @@ def calculate_income_tax(income):
         tax_due += bracket_tax
 
     return tax_due
+
+def tax_from_saving_interest(salary, interest_earned, saving_allowance, tax_free_interest=0):
+    """
+    Calculate the tax owed from interest earned on savings.
+    
+    Parameters:
+    - income: Annual income of the individual.
+    - interest_earned: Total interest earned from savings.
+    - saving_allowance: The tax-free interest allowance based on the individual's income. (from saving_allowance function)
+    - tax_free_interest: Optional; the amount of interest that is tax-free.
+    
+    Returns:
+    - Tax owed from the interest earned.
+    """
+    if not all(isinstance(x, (int, float)) for x in [salary, interest_earned, saving_allowance, tax_free_interest]): 
+        raise TypeError("All inputs must be numeric (int or float).")
+
+    taxable_interest = interest_earned - tax_free_interest - saving_allowance
+    if taxable_interest < 0:
+        taxable_interest = 0
+
+    taxable_income = salary + taxable_interest
+    
+    tax_from_salary = calculate_income_tax(salary)
+    tax_from_all_income = calculate_income_tax(taxable_income)
+    
+    tax_from_saving_interest = tax_from_all_income - tax_from_salary
+  
+    return tax_from_saving_interest
+
 
 if __name__ == "__main__":
     main()
