@@ -1,30 +1,35 @@
 import numpy as np
 import pandas as pd
-from tax_utility import get_psa, get_tax_brackets, psa_start_rate, psa_upper_limit
+from tax_utility import get_psa, get_tax_brackets, pa_start_rate, pa_upper_limit
 
 def main(): 
     # for manual testing the functions in this script
 
-    salary = 14500 # if pension is NPA (taken before tax, input annual income - pension; else just input annual income)
-    interest_earned = 2500
-    isa_interest_earned = 0
-    taxable_interest = interest_earned - isa_interest_earned
-    total_taxable_income = salary + taxable_interest
+    # salary = 14500 # if pension is NPA (taken before tax, input annual income - pension; else just input annual income)
+    # interest_earned = 2500
+    # isa_interest_earned = 0
+    # taxable_interest = interest_earned - isa_interest_earned
+    # total_taxable_income = salary + taxable_interest
 
-    print(f"Income: £{salary}")
-    print('Tax from salary')
-    print(f"Tax Due: £{calculate_income_tax(salary):.2f}")
-    print(f"Tax Due per month: £{calculate_income_tax(salary)/12:.2f}")
-    print('=====================================================')
+    # print(f"Income: £{salary}")
+    # print('Tax from salary')
+    # print(f"Tax Due: £{calculate_income_tax(salary):.2f}")
+    # print(f"Tax Due per month: £{calculate_income_tax(salary)/12:.2f}")
+    # print('=====================================================')
     
-    print(f"Interest earned: £{interest_earned}")
-    print(f"Taxable interest: £{taxable_interest}")
-    print(f"Saving allowance (excl ISA): £{get_saving_allowance(salary)}")
-    print(f"Tax from saving interest: £{tax_from_saving_interest(salary, interest_earned, isa_interest_earned)}")
-    # print(f"total tax payable: £{calculate_income_tax(salary+interest_earned)}")
+    # print(f"Interest earned: £{interest_earned}")
+    # print(f"Taxable interest: £{taxable_interest}")
+    # print(f"Saving allowance (excl ISA): £{get_saving_allowance(salary)}")
+    # print(f"Tax from saving interest: £{tax_from_saving_interest(salary, interest_earned, isa_interest_earned)}")
+    # # print(f"total tax payable: £{calculate_income_tax(salary+interest_earned)}")
 
-    # total tax payable
-    print(f"Total tax payable: £{calculate_income_tax(total_taxable_income)}")
+    # # total tax payable
+    # print(f"Total tax payable: £{calculate_income_tax(total_taxable_income)}")
+
+    # personal allowance
+    salary = 0
+    print(f"Personal allowance: £{get_personal_allowance(salary)}")
+
     
 
 
@@ -36,8 +41,8 @@ def get_saving_allowance(income):
     # if income is below 12570, personal allowance is 5000
     # if income is above 12570, personal allowance is any amount above 12570 subtracted from 5000
     # if income is above 17570, personal allowance is 0
-    start_rate_for_saving_limit = psa_start_rate() # 5000
-    pa_upper_limit = psa_upper_limit() # 17570
+    start_rate_for_saving_limit = pa_start_rate() # 5000
+    pa_upper_limit = pa_upper_limit() # 17570
     pa_lower_limit = pa_upper_limit - start_rate_for_saving_limit
 
     # logic to determine how much is deducted from the £5000 personal allowance based on income
@@ -78,28 +83,69 @@ def get_saving_allowance(income):
     # so if you earn interest on saving up to 17570 without any other income, you won't pay any tax on it
     # if you earn interest on saving above 17570, you will pay tax on any amount that exceeds 17570 based on the tax breackets
 
+def get_personal_allowance(non_savings_income): 
+    pa_start_rate_limit = pa_start_rate()
+    pa_upper_limit_rate = pa_upper_limit()
+    if non_savings_income > pa_upper_limit_rate: 
+        pa = 0
+    else: 
+        pa = min(pa_upper_limit_rate - non_savings_income, pa_start_rate_limit)
+    return pa
+    
+
 def calculate_income_tax(non_saving_income, saving_interest=0):
-    brackets = get_tax_brackets()
+    # brackets = get_tax_brackets()
+    # tax_due = 0.0
+
+    # for _, row in brackets.iterrows():
+    #     lower = row['lower_limit']
+    #     upper = row['upper_limit']
+    #     rate = row['rate']
+        
+    #     # If income is less than the lower limit, skip this bracket
+    #     if income <= lower:
+    #         continue
+        
+    #     # Taxable amount in this bracket
+    #     taxable = min(income, upper) - lower
+    #     bracket_tax = taxable * rate
+
+    #     if bracket_tax < 0: 
+    #         raise ValueError(f"The {row['bracket']} bracket is returning negative tax of {bracket_tax}. ")
+
+    #     tax_due += bracket_tax
+
+    # return tax_due
+    # get parameters
+    tax_bracket = get_tax_brackets()
+    pa_start_rate_limit = pa_start_rate()
+    pa_upper_limit_rate = pa_upper_limit()
+    psa_brackets = get_psa()
+
+    # calcaulate tax from non-savings income
     tax_due = 0.0
 
-    for _, row in brackets.iterrows():
+    for _, row in tax_bracket.iterrows():
         lower = row['lower_limit']
         upper = row['upper_limit']
         rate = row['rate']
         
         # If income is less than the lower limit, skip this bracket
-        if income <= lower:
-            continue
-        
+        if non_saving_income <= lower:
+            bracket_tax = 0.0
+    
         # Taxable amount in this bracket
-        taxable = min(income, upper) - lower
-        bracket_tax = taxable * rate
+        else: 
+            taxable = min(non_saving_income, upper) - lower
+            bracket_tax = taxable * rate
 
         if bracket_tax < 0: 
             raise ValueError(f"The {row['bracket']} bracket is returning negative tax of {bracket_tax}. ")
-
+        
         tax_due += bracket_tax
 
+    # calculate if the saving interest is taxable
+    
     return tax_due
 
 def tax_from_saving_interest(salary, interest_earned, isa_interest=0):

@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
 
-def psa_start_rate(): 
+# personal allowance
+def pa_start_rate(): 
     return 5000
 
-def psa_upper_limit(): 
+def pa_upper_limit(): 
     return 17570
 
+# personal saving allowance; separate from personal allowance
 def get_psa(): 
 
     # set personal allowance as the same as basic rate
