@@ -27,14 +27,22 @@ def main():
     # print(f"Total tax payable: £{calculate_income_tax(total_taxable_income)}")
 
     # personal allowance
-    salary = 0
-    print(f"Personal allowance: £{get_personal_allowance(salary)}")
+    salary = float(input("Enter your annual salary: "))
+    non_isa_saving_interest = float(input("Enter your non-ISA saving interest earned: "))
 
+    print(f"Salary: £{salary}")
+    print(f"Non-ISA Saving Interest: £{non_isa_saving_interest}")
+    print("------------------------------")
+    print(f'Personal allowance: £{get_personal_allowance(salary)}')
+    print(f'Income tax: £{calculate_income_tax(salary)}')
+    print(f'Taxable saving interest: {taxable_saving(salary, non_isa_saving_interest)}')
     
 
 
 
 def get_saving_allowance(income): 
+    pass
+
     annual_income = int(income) if isinstance(income, (int, float)) else float(income)
 
     # calculate if there's any personal allowance base on income
@@ -76,6 +84,8 @@ def get_saving_allowance(income):
     # else: 
     tax_free_interest = personal_saving_allowance[current_tax_bracket] + start_rate_of_saving
 
+
+
     return tax_free_interest
 
     # if you donn't have any personal income, you have a personal saving allowance of 5000
@@ -92,8 +102,46 @@ def get_personal_allowance(non_savings_income):
         pa = min(pa_upper_limit_rate - non_savings_income, pa_start_rate_limit)
     return pa
     
+def taxable_saving(non_saving_income, non_isa_saving_interest=0): 
+    '''
+    get the taxable saving interest based on non_saving_income and non_isa_saving_interest
+    '''
+    non_saving_income = float(non_saving_income)
 
-def calculate_income_tax(non_saving_income, saving_interest=0):
+    # get parameters
+    tax_brackets = get_tax_brackets()
+    tax_brackets = tax_brackets.to_dict(orient="records")
+    psa_brackets = get_psa()
+    
+    # find out which tax bracket the non_saving_income is in
+    if non_saving_income <= 0: 
+        tax_bracket = 'personal_allowance'
+
+    for bracket in tax_brackets:
+        lower = bracket['lower_limit']
+        upper = bracket['upper_limit']
+        if lower < non_saving_income <= upper:
+            tax_bracket =  bracket['bracket']
+    
+    # calculate deducatable from pa and psa
+
+    personal_allowance = get_personal_allowance(non_saving_income)
+    psa = psa_brackets[tax_bracket]
+
+    taxable_saving_interest = max(
+        non_isa_saving_interest - personal_allowance - psa, 
+        0
+        )
+
+    return {'tax_bracket': tax_bracket, 
+            'personal_allowance': personal_allowance,
+            'psa': psa, 
+            'taxable_saving_interest': taxable_saving_interest
+            }
+
+
+
+def calculate_income_tax(non_saving_income, non_isa_saving_interest=0):
     # brackets = get_tax_brackets()
     # tax_due = 0.0
 
@@ -145,10 +193,11 @@ def calculate_income_tax(non_saving_income, saving_interest=0):
         tax_due += bracket_tax
 
     # calculate if the saving interest is taxable
-    
+        
     return tax_due
 
 def tax_from_saving_interest(salary, interest_earned, isa_interest=0):
+    pass
     """
     Calculate the tax owed from interest earned on savings.
     
