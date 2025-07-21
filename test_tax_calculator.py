@@ -65,6 +65,13 @@ def test_tax_from_saving_interest_0():
     assert tax_from_saving_interest(12569, 6000) == 0 # 12570 or 12569? 
     # to be continued with more scenarios  with income but no taxable saving interest
 
+# additional rate has no psa, so it should just be the saving * tax rate
+def test_tax_from_saving_interest_additional_rate(): 
+    assert tax_from_saving_interest(126141, 1000) == 450 #1000*0.45
+    assert tax_from_saving_interest(124640, 1000) == 425 #500*0.25 + 500*0.45
+
+
+
 # scenario testings taken from moneysavingexpert.com
 # https://www.moneysavingexpert.com/savings/tax-free-savings/
 def test_scenario_1(): 
@@ -147,3 +154,14 @@ def test_tax_from_saving_interest_scenario_5():
     assert calculate_income_tax(49270, 1010) == 7444 # 7340 + 104
     assert tax_from_saving_interest(49270, 1010) == 104 # 500 tax-free, 500 taxed at 20%, 10 taxed at 40%
     # this didn't pass, which means the tax_from_saving_interest/ function needs to be fixed
+
+# test edge cases
+def test_tax_from_saving_interest_scenario_6(): 
+    '''
+    Salary near the limit, the psa deduction is partially in basic rate and higher rate. 
+    Income from work: £50,020
+    Interest from savings accounts: £1,000
+    Size of PSA: £500
+    Tax from saving interest: £500
+    '''
+    assert tax_from_saving_interest(50020, 1000) == 500

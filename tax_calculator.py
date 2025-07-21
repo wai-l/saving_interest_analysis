@@ -75,7 +75,7 @@ def get_taxable_saving_details(non_saving_income, non_isa_saving_interest=0):
     psa_brackets = get_psa()
     
     # find out which tax bracket the non_isa_income is in
-    if total_non_isa_income <= 0: 
+    if total_non_isa_income <= 0:  
         tax_bracket = 'personal_allowance'
 
     for bracket in tax_brackets:
@@ -102,27 +102,33 @@ def get_taxable_saving_details(non_saving_income, non_isa_saving_interest=0):
 
 
 
-def calculate_income_tax(non_saving_income, non_isa_saving_interest=0):
-    non_saving_income = float(non_saving_income) #49270
-    non_isa_saving_interest = float(non_isa_saving_interest) #1010
+def calculate_income_tax(non_saving_income, non_isa_saving_interest=0): 
+    '''
+    This function return a panda dataframe for breakdown of taxaxable income and tax by tax bracket and income type (salary and non_isa saving interest). 
 
-    pa = get_taxable_saving_details(non_saving_income, non_isa_saving_interest)['personal_allowance'] #0
-    psa = get_taxable_saving_details(non_saving_income, non_isa_saving_interest)['psa'] #500
+    The calculationthis does not include dividend currently. 
+
+    parameter: 
+    - non_saving_income (usually means salary, can also be pension)
+    - non_isa_saving_interest (any interest gain from a non isa account within the tax year)
+    '''
+    non_saving_income = float(non_saving_income)
+    non_isa_saving_interest = float(non_isa_saving_interest)
+
+    pa = get_taxable_saving_details(non_saving_income, non_isa_saving_interest)['personal_allowance']
+    psa = get_taxable_saving_details(non_saving_income, non_isa_saving_interest)['psa']
 
     # psa not deducted yet as it's included in evaluating the tax bracket
-    taxable_saving_interest = max(non_isa_saving_interest - pa, 0) #1010
-    taxable_income = non_saving_income + taxable_saving_interest #1010+49270 = 50280
+    taxable_saving_interest = max(non_isa_saving_interest - pa, 0)
+    taxable_income = non_saving_income + taxable_saving_interest
 
     # get parameters
     tax_bracket = get_tax_brackets()
     
     # calcaulate tax from taxable income, psa not deducted yet
-    # tax_due = 0.0
     bracket_details = []
-    # remaining_taxable_income = taxable_income
-    # remaining_non_saving_income = non_saving_income
-    # remaining_taxable_saving_interest = taxable_saving_interest
 
+    # loop through the brackets to get the taxable income and tax per bracket
     for _, row in tax_bracket.iterrows():
         bracket = row['bracket']
         lower = row['lower_limit']
@@ -134,9 +140,9 @@ def calculate_income_tax(non_saving_income, non_isa_saving_interest=0):
             bracket_taxable_income = 0.0
             bracket_taxable_non_saving_income = 0.0
             bracket_taxable_saving_interest = 0.0
-            bracket_tax_total = 0.0
-            bracket_tax_non_saving_income = 0.0
-            bracket_tax_saving_interest = 0.0
+            # bracket_tax_total = 0.0
+            # bracket_tax_non_saving_income = 0.0
+            # bracket_tax_saving_interest = 0.0
     
         # Taxable amount in this bracket
         else: 
@@ -144,9 +150,9 @@ def calculate_income_tax(non_saving_income, non_isa_saving_interest=0):
             bracket_taxable_non_saving_income = max(min(non_saving_income, upper) - lower, 0)
             bracket_taxable_saving_interest = bracket_taxable_income - bracket_taxable_non_saving_income
             
-            bracket_tax_total = bracket_taxable_income * rate
-            bracket_tax_non_saving_income = bracket_taxable_non_saving_income * rate if bracket_taxable_non_saving_income > 0 else 0.0
-            bracket_tax_saving_interest = bracket_taxable_saving_interest * rate if bracket_taxable_saving_interest > 0 else 0.0
+            # bracket_tax_total = bracket_taxable_income * rate
+            # bracket_tax_non_saving_income = bracket_taxable_non_saving_income * rate if bracket_taxable_non_saving_income > 0 else 0.0
+            # bracket_tax_saving_interest = bracket_taxable_saving_interest * rate if bracket_taxable_saving_interest > 0 else 0.0
 
         
         bracket_details.append({
@@ -164,9 +170,13 @@ def calculate_income_tax(non_saving_income, non_isa_saving_interest=0):
 
     # bracket_details_df = pd.DataFrame(bracket_details)
 
+    # loop through each bracket and their taxable income and deducte the psa
     remaining_psa = psa
 
     for bracket in bracket_details: 
+        # if the rate is 0 - it is the personal allowance bracket, so tax doesn't apply
+        # if remaining psa is 0 - we have used the full psa and start being taxed for saving interest
+        # this replicate the logic: the psa deduction start from when you first start getting tax for your saving interest
         if bracket['rate'] == 0.00 or remaining_psa <= 0: 
             bracket['tax'] = bracket['taxable'] * bracket['rate'] 
             bracket['tax_non_saving_income'] = bracket['taxable_non_saving_income'] * bracket['rate']
@@ -205,48 +215,28 @@ def calculate_income_tax(non_saving_income, non_isa_saving_interest=0):
             # }
     return bracket_details_df
 
-def tax_from_saving_interest(salary, non_isa_saving_interest):
-    pass
-    """
-    Calculate the tax owed from interest earned on savings.
+# def tax_from_saving_interest(salary, non_isa_saving_interest):
+#     pass
+#     """
+#     Calculate the tax owed from interest earned on savings.
     
-    Parameters:
-    - income: Annual income of the individual.
-    - interest_earned: Total interest earned from savings.
+#     Parameters:
+#     - income: Annual income of the individual.
+#     - interest_earned: Total interest earned from savings.
     
-    Returns:
-    - Tax owed from the interest earned.
-    """
-    if not all(isinstance(x, (int, float)) for x in [salary, non_isa_saving_interest]): 
-        raise TypeError("All inputs must be numeric (int or float).")
+#     Returns:
+#     - Tax owed from the interest earned.
+#     """
+#     if not all(isinstance(x, (int, float)) for x in [salary, non_isa_saving_interest]): 
+#         raise TypeError("All inputs must be numeric (int or float).")
 
-    tax_from_salary = calculate_income_tax(salary)
+#     tax_from_salary = calculate_income_tax(salary)
 
-    total_income_tax = calculate_income_tax(salary, non_isa_saving_interest)
+#     total_income_tax = calculate_income_tax(salary, non_isa_saving_interest)
 
-    tax_from_saving_interest = total_income_tax - tax_from_salary
+#     tax_from_saving_interest = total_income_tax - tax_from_salary
 
-    return tax_from_saving_interest
-
-
-def testing(non_saving_income, non_isa_saving_interest=0):
-
-    non_saving_income = float(non_saving_income)
-    non_isa_saving_interest = float(non_isa_saving_interest)
-
-    total_non_isa_income = non_saving_income + non_isa_saving_interest
-
-    deductable_interest = get_taxable_saving_details(non_saving_income)['personal_allowance'] + get_taxable_saving_details(non_saving_income)['psa']
-
-    taxable_income = total_non_isa_income - deductable_interest
-
-    return {
-        'non_saving_income': non_saving_income,
-        'non_isa_saving_interest': non_isa_saving_interest,
-        'total_non_isa_income': total_non_isa_income,
-        'deductable_interest': deductable_interest,
-        'taxable_income': taxable_income
-    }
+#     return tax_from_saving_interest
 
 if __name__ == "__main__":
     main()
