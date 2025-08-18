@@ -10,9 +10,6 @@ def pa_upper_limit():
 
 # personal saving allowance; separate from personal allowance
 def get_psa(): 
-
-    # set personal allowance as the same as basic rate
-    # as anyone with income below 12570, for any amount that they exceed 12570 + 5000, will still have the personal allowance of 1000 under basic rate
     personal_saving_allowance = {
         'personal_allowance': 0, 
         'basic_rate': 1000, 

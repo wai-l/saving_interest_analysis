@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 # from pandas.testing import assert_frame_equal
-from tax_calculator import get_personal_allowance, calculate_income_tax
+from tax_calculator import get_personal_allowance, get_taxable_saving_details, calculate_income_tax
 
 # personal allowance tests
 def test_get_personal_allowance_full_5000(): 
@@ -21,6 +21,47 @@ def test_get_personal_allowance_0():
     assert get_personal_allowance(17570) == expected
     assert get_personal_allowance(20000) == expected
     assert get_personal_allowance(30000) == expected
+
+# get_taxable_saving_details
+def test_get_taxable_saving_details_personal_allowance(): 
+    assert get_taxable_saving_details(0, 0) == {
+        'tax_bracket': 'personal_allowance',
+        'personal_allowance': 5000,
+        'psa': 0,
+        'taxable_saving_interest': 0
+    }
+    assert get_taxable_saving_details(12570, 0) == {
+        'tax_bracket': 'personal_allowance',
+        'personal_allowance': 5000,
+        'psa': 0,
+        'taxable_saving_interest': 0
+    }
+    assert get_taxable_saving_details(0, 5000) == {
+        'tax_bracket': 'personal_allowance',
+        'personal_allowance': 5000,
+        'psa': 0,
+        'taxable_saving_interest': 0
+    }
+
+def test_get_taxable_saving_details_basic_rate(): 
+    assert get_taxable_saving_details(23000, 0) == {
+        'tax_bracket': 'basic_rate',
+        'personal_allowance': 0,
+        'psa': 1000,
+        'taxable_saving_interest': 0
+    }
+    assert get_taxable_saving_details(23000, 1001) == {
+        'tax_bracket': 'basic_rate',
+        'personal_allowance': 0,
+        'psa': 1000,
+        'taxable_saving_interest': 1
+    }
+    assert get_taxable_saving_details(23000, 2000) == {
+        'tax_bracket': 'basic_rate',
+        'personal_allowance': 0,
+        'psa': 1000,
+        'taxable_saving_interest': 1000
+    }
 
 # income tax tests - total tax
 def test_calculate_income_tax_total_0(): 
@@ -55,42 +96,6 @@ def test_calculate_income_tax_basic_rate_total():
     assert calculate_income_tax(50270)['total_tax'] == 7540 #0.20 * (50270 - 12570)
     
 # ###############################
-# def test_calculate_income_tax_0(): 
-#     assert calculate_income_tax(0)['total_tax'] == 0
-#     assert calculate_income_tax(0)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(0)['tax_saving_interest'] == 0
-
-#     assert calculate_income_tax(0, 5000)['total_tax'] == 0
-#     assert calculate_income_tax(0, 5000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(0, 5000)['tax_saving_interest'] == 0
-
-#     assert calculate_income_tax(0, 6000)['total_tax'] == 0
-#     assert calculate_income_tax(0, 6000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(0, 6000)['tax_saving_interest'] == 0
-
-#     assert calculate_income_tax(1000)['total_tax'] == 0
-#     assert calculate_income_tax(1000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(1000)['tax_saving_interest'] == 0
-    
-#     assert calculate_income_tax(1000, 5000)['total_tax'] == 0
-#     assert calculate_income_tax(1000, 5000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(1000, 5000)['tax_saving_interest'] == 0
-
-#     assert calculate_income_tax(1000, 5000)['total_tax'] == 0
-#     assert calculate_income_tax(1000, 5000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(1000, 5000)['tax_saving_interest'] == 0
-    
-#     assert calculate_income_tax(12570)['total_tax'] == 0
-#     assert calculate_income_tax(12570)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(12570)['tax_saving_interest'] == 0
-
-#     assert calculate_income_tax(12570, 5000)['total_tax'] == 0
-#     assert calculate_income_tax(12570, 5000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(12570, 5000)['tax_saving_interest'] == 0
-
-#     assert calculate_income_tax(12570, 6000)['total_tax'] == 0
-#     assert calculate_income_tax(12570, 6000)['tax_non_saving_income'] == 0
-#     assert calculate_income_tax(12570, 6000)['tax_saving_interest'] == 0
 
 # def test_calculate_income_tax_basic_rate(): 
 #     # basic rate is 20% for income between 12570 and 50270
