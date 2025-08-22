@@ -1,130 +1,130 @@
-import pandas as pd
 import numpy as np
-
-def main(): 
-    print(calculate_income_tax_split(35000, 5000))
-
-def pa_start_rate(): 
-    return 5000
-
-def pa_upper_limit(): 
-    return 17570
-
-def get_psa(): 
-
-    # set personal allowance as the same as basic rate
-    # as anyone with income below 12570, for any amount that they exceed 12570 + 5000, will still have the personal allowance of 1000 under basic rate
-    personal_saving_allowance = {
-        'personal_allowance': 1000, 
-        'basic_rate': 1000, 
-        'higher_rate': 500, 
-        'additional_rate': 0
-    }
-
-    return personal_saving_allowance
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tax_calculator import calculate_income_tax
 
 
-def get_tax_brackets(): 
-    # tax brackets base on annnual income
-    tax_brackets = [
-        {'bracket': 'personal_allowance', 'lower_limit': 0, 'upper_limit': 12570, 'rate': 0.00},
-        {'bracket': 'basic_rate', 'lower_limit': 12570, 'upper_limit': 50270, 'rate': 0.20},
-        {'bracket': 'higher_rate', 'lower_limit': 50270, 'upper_limit': 125140, 'rate': 0.40},
-        {'bracket': 'additional_rate', 'lower_limit': 125140, 'upper_limit': np.inf, 'rate': 0.45}
-        ]
+def get_true_aer(non_saving_income: float, balance: float, monthly_fee: float, aer: float, isa: bool) -> float:
+    """
+    Calculate the true AER (Annual Equivalent Rate) after tax and fees.
+    """
+    annual_interest = balance * aer
+    if not isa:
+        tax_due = calculate_income_tax(non_saving_income, annual_interest)["tax_saving_interest"]
+        annual_interest -= tax_due
 
-    tax_brackets = pd.DataFrame(tax_brackets)
-
-    return tax_brackets
-
-
-
-def calculate_income_tax_split(non_savings_income, savings_interest):
-    # brackets = get_tax_brackets()
-    # total_income = non_savings_income + savings_interest
-    # personal_allowance = 12570
-    # remaining_pa = max(0, personal_allowance - non_savings_income)
-    
-    # # Apply remaining personal allowance to savings interest
-    # tax_free_savings = min(remaining_pa, savings_interest)
-    # taxable_savings = savings_interest - tax_free_savings
-
-    # # Apply starting rate for savings
-    # starting_rate_limit = 5000
-    # if non_savings_income < personal_allowance:
-    #     starting_rate_available = starting_rate_limit
-    # elif non_savings_income < personal_allowance + starting_rate_limit:
-    #     starting_rate_available = personal_allowance + starting_rate_limit - non_savings_income
-    # else:
-    #     starting_rate_available = 0
-
-    # starting_rate_used = min(taxable_savings, starting_rate_available)
-    # taxable_savings -= starting_rate_used
-
-    # # Apply PSA (assume basic rate taxpayer for now)
-    # psa = 1000 if total_income <= 50270 else 500 if total_income <= 125140 else 0
-    # psa_used = min(taxable_savings, psa)
-    # taxable_savings -= psa_used
-
-    # # Tax salary (non-savings income)
-    # tax_due = 0
-    # for _, row in brackets.iterrows():
-    #     lower = row['lower_limit']
-    #     upper = row['upper_limit']
-    #     rate = row['rate']
-
-    #     # Non-savings income
-    #     if non_savings_income > lower:
-    #         taxable_amount = min(non_savings_income, upper) - lower
-    #         tax_due += taxable_amount * rate
-
-    #     # Savings income (taxable portion only)
-    #     if taxable_savings > 0:
-    #         if total_income > lower:
-    #             bracket_range = min(total_income, upper) - lower
-    #             savings_in_this_band = min(taxable_savings, bracket_range)
-    #             tax_due += savings_in_this_band * rate
-    #             taxable_savings -= savings_in_this_band
-
-    # return round(tax_due, 2)
-
-    # get parameters
-    tax_bracket = get_tax_brackets()
-    pa_start_rate_limit = pa_start_rate()
-    pa_upper_limit_rate = pa_upper_limit()
-    psa_brackets = get_psa()
-
-    # calcaulate tax from non-savings income
-    tax_due = 0.0
-
-    for _, row in tax_bracket.iterrows():
-        lower = row['lower_limit']
-        upper = row['upper_limit']
-        rate = row['rate']
-        
-        # If income is less than the lower limit, skip this bracket
-        if non_savings_income <= lower:
-            bracket_tax = 0.0
-    
-        # Taxable amount in this bracket
-        else: 
-            taxable = min(non_savings_income, upper) - lower
-            bracket_tax = taxable * rate
-
-        if bracket_tax < 0: 
-            raise ValueError(f"The {row['bracket']} bracket is returning negative tax of {bracket_tax}. ")
-        
-        tax_due += bracket_tax
-
-    # calculate if the saving interest is taxable
-    
-    if non_savings_income > pa_upper_limit_rate: 
-        pa = 0
-    else: 
-        pa = max(pa_upper_limit_rate - non_savings_income, pa_start_rate_limit)
-    
-    return tax_due, pa
+    annual_fee = monthly_fee * 12
+    true_annual_interest = annual_interest - annual_fee
+    return true_annual_interest / balance
 
 
-if __name__ == "__main__": 
+def prepare_accounts(accounts: list[tuple], current_balance: float, non_saving_income: float) -> pd.DataFrame:
+    """
+    Convert accounts list into DataFrame with pre-computed returns.
+    """
+    # Ensure unique account names
+    keys = [k for k, _ in accounts]
+    if len(keys) != len(set(keys)):
+        raise ValueError("Account names must be unique")
+
+    accounts_dict = {k: v for k, v in accounts}
+
+    df = pd.DataFrame.from_dict(accounts_dict, orient="index").reset_index()
+    df.columns = ["account", "aer", "monthly_fee", "isa"]
+
+    # Pre-compute metrics
+    df["pre_tax_annual_interest"] = df["aer"] * current_balance
+    df["true_aer"] = df.apply(
+        lambda row: get_true_aer(non_saving_income, current_balance, row["monthly_fee"], row["aer"], row["isa"]), axis=1
+    )
+    df["saving_interest_tax"] = df.apply(
+        lambda row: calculate_income_tax(non_saving_income, current_balance * row["aer"])["tax_saving_interest"], axis=1
+    )
+    df["true_annual_return"] = (
+        current_balance * df["aer"] - df["saving_interest_tax"] - df["monthly_fee"] * 12
+    )
+
+    return df
+
+
+def simulate_balances(accounts: list[tuple], balances: list, non_saving_income: float) -> pd.DataFrame:
+    """
+    Simulate the best account by balance.
+    """
+    df_accounts = pd.DataFrame.from_dict(dict(accounts), orient="index").reset_index()
+    df_accounts.columns = ["account", "aer", "monthly_fee", "isa"]
+
+    results = []
+    for balance in balances:
+        best_return = float("-inf")
+        best_account = None
+
+        for _, row in df_accounts.iterrows():
+            true_aer = get_true_aer(non_saving_income, balance, row["monthly_fee"], row["aer"], row["isa"])
+            if true_aer > best_return:
+                best_return, best_account = true_aer, row["account"]
+
+        results.append({"balance": balance, "best_account": best_account, "true_aer": best_return})
+
+    return pd.DataFrame(results)
+
+
+def reshape_returns(accounts: list[tuple], balances: list, non_saving_income: float) -> pd.DataFrame:
+    """
+    Get long-format returns (for plotting).
+    """
+    df_accounts = pd.DataFrame.from_dict(dict(accounts), orient="index").reset_index()
+    df_accounts.columns = ["account", "aer", "monthly_fee", "isa"]
+
+    records = []
+    for balance in balances:
+        for _, row in df_accounts.iterrows():
+            records.append({
+                "balance": balance,
+                "account": row["account"],
+                "true_aer": get_true_aer(non_saving_income, balance, row["monthly_fee"], row["aer"], row["isa"])
+            })
+    return pd.DataFrame(records)
+
+
+def main():
+    non_saving_income = 32000
+    current_balance = 25000
+
+    accounts = [
+        ("monzo", {"aer": 0.0325, "monthly_fee": 0, "isa": False}),
+        ("barclays_rainy_day", {"aer": 0.0461, "monthly_fee": 5, "isa": False}),
+        ("monzo_perks", {"aer": 0.0385, "monthly_fee": 7, "isa": False}),
+        ("barclays_1_yr_flexible_cash_isa", {"aer": 0.0385, "monthly_fee": 0, "isa": True}),
+    ]
+
+    # 1. Single balance analysis
+    df = prepare_accounts(accounts, current_balance, non_saving_income)
+    print("=== Accounts at current balance ===")
+    print(df.sort_values("true_aer", ascending=False))
+
+    # 2. Multiple balances simulation
+    balances = np.arange(1000, 25001, 500)
+    best_by_balance = simulate_balances(accounts, balances, non_saving_income)
+    print("\n=== Best account by balance range ===")
+    print(
+        best_by_balance.groupby("best_account")
+        .agg(min_balance=("balance", "min"), max_balance=("balance", "max"))
+    )
+
+    # 3. Plot returns
+    returns_long = reshape_returns(accounts, balances, non_saving_income)
+    plt.figure(figsize=(12, 6))
+    sns.lineplot(data=returns_long, x="balance", y="true_aer", hue="account", palette="tab10")
+    plt.title("True AER by Balance")
+    plt.xlabel("Balance (£)")
+    plt.ylabel("True AER")
+    plt.axhline(0, color="black", linewidth=0.5, linestyle="--")
+    plt.grid(True)
+    plt.legend(title="Account")
+    plt.show()
+
+
+if __name__ == "__main__":
     main()
