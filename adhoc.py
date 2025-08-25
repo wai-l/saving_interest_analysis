@@ -5,6 +5,7 @@ import seaborn as sns
 from tax_calculator import calculate_income_tax
 
 
+
 def get_true_aer(non_saving_income: float, balance: float, monthly_fee: float, aer: float, isa: bool) -> float:
     """
     Calculate the true AER (Annual Equivalent Rate) after tax and fees.
@@ -17,6 +18,7 @@ def get_true_aer(non_saving_income: float, balance: float, monthly_fee: float, a
     annual_fee = monthly_fee * 12
     true_annual_interest = annual_interest - annual_fee
     return true_annual_interest / balance
+
 
 
 def prepare_accounts(accounts: list[tuple], current_balance: float, non_saving_income: float) -> pd.DataFrame:
