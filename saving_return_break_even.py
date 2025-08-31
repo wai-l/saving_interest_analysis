@@ -71,70 +71,74 @@ def main():
     else: 
         upper = int(upper) + 1
 
-    balances = np.arange(lower, upper, 100)
-    
-    best_account_by_balance = []
+    ## calculate the best account by balance
+    balance_sim = simulate_balances(accounts, non_saving_income, lower, upper) 
 
-    aer_table = df.copy()
+    # summary of the best account by balance
+    # !!!!!!!this currently does not provide the segments as it's only pulling min and max; min/max true aer is also not related to the min/max balance!!!!!!!!!!!!!!!
+    best_accounts_by_balance = (
+        balance_sim.groupby('best_account')
+        .agg(
+            min_balance=('balance', 'min'), 
+            max_balance=('balance', 'max'),
+            min_true_aer=('true_aer', 'min'),
+            max_true_aer=('true_aer', 'max')
+            )
+    )
 
-    for balance in balances: 
-        aer_table['true_aer'] = aer_table.apply(lambda row: get_true_aer(non_saving_income, balance, row['monthly_fee'], row['aer'], row['isa']), axis=1)
-        best_account = aer_table.loc[aer_table['true_aer'].idxmax(), 'account']
-        best_aer = aer_table['true_aer'].max()
-        best_account_by_balance.append({'balance': balance, 'best_account': best_account, 'true_aer': best_aer})   
-
-    best_account_by_balance = pd.DataFrame(best_account_by_balance)
-    best_account_by_balance['true_aer'] = best_account_by_balance['true_aer'].apply(lambda x: f"{x:.4%}")
-    
     print('-----------------------')
     print('Best account by balance:')
+    print(best_accounts_by_balance)
+
+    print('=======================')
+
+    # ploting the true AER by balance for each account        
+
+    return_by_balance = []
+
+    balances = np.arange(lower, upper, 100)
+    df = pd.DataFrame.from_dict(dict(accounts), orient="index").reset_index()
+    df.columns = ["account", "aer", "monthly_fee", "isa"]
+
+    print(df)
     
-    best_account_by_balance_pivot = (
-        best_account_by_balance
-        .groupby('best_account')
-        .agg(minimum_balance=('balance', 'min'),
-             maximum_balance=('balance', 'max')
-             )
-        .reset_index()
-        .rename(columns={'balance': 'min_balance', 'balance': 'max_balance'})
-        .sort_values('minimum_balance', ascending=True)
+    for balance in balances: 
+        row = {'balance': balance}
+        for account, details in accounts: 
+            row[account] = get_true_aer(
+            non_saving_income, 
+            balance, 
+            details['monthly_fee'],
+            details['aer'], 
+            details['isa']
     )
-    
-    print(best_account_by_balance_pivot)
+        # for account in accounts: 
+        #     row[account] = get_true_aer(non_saving_income, 
+        #                                 balance, 
+        #                                 df[df['account'] == account]['monthly_fee'].values[0],
+        #                                 df[df['account'] == account]['aer'].values[0], 
+        #                                 df[df['account'] == account]['isa'].values[0])
+        return_by_balance.append(row)
 
-    # # ploting the true AER by balance for each account        
+    return_by_balance = pd.DataFrame(return_by_balance)
 
-    # return_by_balance = []
+    return_by_balance_unpivoted = return_by_balance.melt(id_vars=['balance'],
+                                                        var_name='account', 
+                                                        value_name='true_aer')
 
-    # for balance in balances: 
-    #     row = {'balance': balance}
-    #     for account in accounts: 
-    #         row[account] = get_true_aer(non_saving_income, 
-    #                                     balance, 
-    #                                     df[df['account'] == account]['monthly_fee'].values[0],
-    #                                     df[df['account'] == account]['aer'].values[0], 
-    #                                     df[df['account'] == account]['isa'].values[0])
-    #     return_by_balance.append(row)
-
-    # return_by_balance = pd.DataFrame(return_by_balance)
-
-    # return_by_balance_unpivoted = return_by_balance.melt(id_vars=['balance'],
-    #                                                     var_name='account', 
-    #                                                     value_name='true_aer')
-
-    # plt.figure(figsize=(12, 6))
-    # sns.lineplot(data=return_by_balance_unpivoted,
-    #          x='balance', 
-    #          y='true_aer', 
-    #          hue='account', 
-    #          palette='tab10')
-    # plt.title('True AER by Balance for Different Accounts')
-    # plt.xlabel('Balance (£)')
-    # plt.ylabel('True AER')
-    # plt.axhline(0, color='black', linewidth=0.5, linestyle='--')
-    # plt.grid(True)
-    # plt.legend(title='Account')
-    # plt.show()
+    plt.figure(figsize=(12, 6))
+    sns.lineplot(data=return_by_balance_unpivoted,
+             x='balance', 
+             y='true_aer', 
+             hue='account', 
+             palette='tab10')
+    plt.title('True AER by Balance for Different Accounts')
+    plt.xlabel('Balance (£)')
+    plt.ylabel('True AER')
+    plt.axhline(0, color='black', linewidth=0.5, linestyle='--')
+    plt.grid(True)
+    plt.legend(title='Account')
+    plt.show()
 
 def get_true_aer(
         non_saving_income: float, balance: float, monthly_fee: float, aer: float, isa: bool
@@ -185,6 +189,43 @@ def get_accounts_df(
     df['true_annual_return'] = df.apply(lambda row: (current_balance * row['aer']) - row['saving_interest_tax'] - (row['monthly_fee'] * 12), axis=1)
     
     return df
+
+def simulate_balances(
+        accounts: list[tuple],
+        non_saving_income: float,
+        lower: int, 
+        upper: int, 
+        range_step: int = 100
+): 
+    '''
+    Simulate the best account by balance.
+    '''
+
+    balances = np.arange(lower, upper, range_step)
+    
+    aer_table = pd.DataFrame.from_dict(dict(accounts), orient="index").reset_index()
+    aer_table.columns = ["account", "aer", "monthly_fee", "isa"]
+
+    results = []
+    for balance in balances: 
+        best_return = float('-inf') # set to negative infinity
+        best_account = None
+
+        for _, row in aer_table.iterrows(): 
+            true_aer = get_true_aer(
+                non_saving_income, balance, 
+                monthly_fee=row['monthly_fee'],
+                aer=row['aer'], 
+                isa=row['isa']
+            )
+            if true_aer > best_return: 
+                best_return = true_aer
+                best_account = row['account']
+
+        results.append(
+            {'balance': balance, 'best_account': best_account, 'true_aer': best_return}
+        )
+    return pd.DataFrame(results)
 
 if __name__ == "__main__":
     main()
