@@ -24,6 +24,9 @@ def main():
     else: 
         current_balance = float(current_balance)
     
+    if current_balance <= 0: 
+        raise ValueError('Current balance must be greater than zero. ')
+
     accounts = [
         ('monzo', {'aer': 0.0325, 'monthly_fee': 0, 'isa': False}),
         ('barclays_rainy_day', {'aer': 0.0461, 'monthly_fee': 5, 'isa': False}), 
@@ -60,7 +63,7 @@ def main():
     ## select balance range
     lower = input('Enter the lower bound of balance range in £ (default: £1,000): ')
     upper = input('Enter the upper bound of balance range in £ (default: £25,000): ')
-
+    
     if lower == '': 
         lower = 1000
     else: 
@@ -71,26 +74,15 @@ def main():
     else: 
         upper = int(upper) + 1
 
+    if lower == 0 or upper == 0: 
+        raise ValueError('Balance range cannot be zero. ')
+    if lower >= upper: 
+        raise ValueError('Lower bound must be less than upper bound. ')
+
     ## calculate the best account by balance
     balance_sim = simulate_balances(accounts, non_saving_income, lower, upper) 
 
-    # summary of the best account by balance
-    # !!!!!!!this currently does not provide the segments as it's only pulling min and max; min/max true aer is also not related to the min/max balance!!!!!!!!!!!!!!!
-    best_accounts_by_balance = (
-        balance_sim.groupby('best_account')
-        .agg(
-            min_balance=('balance', 'min'), 
-            max_balance=('balance', 'max'),
-            min_true_aer=('true_aer', 'min'),
-            max_true_aer=('true_aer', 'max')
-            )
-    )
-
-    print('-----------------------')
-    print('Best account by balance:')
-    print(best_accounts_by_balance)
-
-    print('=======================')
+    print(best_acc_by_bal_segment(balance_sim))
 
     # ploting the true AER by balance for each account        
 
@@ -100,7 +92,7 @@ def main():
     df = pd.DataFrame.from_dict(dict(accounts), orient="index").reset_index()
     df.columns = ["account", "aer", "monthly_fee", "isa"]
 
-    print(df)
+    # print(df)
     
     for balance in balances: 
         row = {'balance': balance}
@@ -139,6 +131,7 @@ def main():
     plt.grid(True)
     plt.legend(title='Account')
     plt.show()
+
 
 def get_true_aer(
         non_saving_income: float, balance: float, monthly_fee: float, aer: float, isa: bool
@@ -226,6 +219,60 @@ def simulate_balances(
             {'balance': balance, 'best_account': best_account, 'true_aer': best_return}
         )
     return pd.DataFrame(results)
+
+def best_acc_by_bal_segment(balance_sim: pd.DataFrame) -> pd.DataFrame: 
+    '''
+    Take the balance simulation result dataframe, iterate through from lowest to higheset balance. 
+    Create a segment table by getting the min and max balance for each segment. 
+
+    If an account appears is the best account for multiple segments, it will be shown as multiple rows.
+    '''
+    
+    segments = []
+    prev_account = None
+    segment_start = None
+    start_aer = None
+    prev_balance = None
+    prev_aer = None
+
+    balance_sim = balance_sim.sort_values(by='balance').reset_index(drop=True)
+
+    for _, row in balance_sim.iterrows(): 
+        # if the account changes, we have reached the end of a segment, so we can record that last segment
+        if row['best_account'] != prev_account: 
+            if prev_account is not None: 
+                segments.append({
+                    'account': prev_account, 
+                    'min_balance': segment_start, 
+                    'min_bal_true_aer': start_aer, 
+                    'max_balance': prev_balance, 
+                    'max_bal_true_aer': prev_aer
+                })
+            
+            # after recording the last segment, start writing new segment
+            segment_start = row['balance']
+            start_aer = row['true_aer']
+
+        # these are to record the last row's data, so when the acc change, we will use these to write the last segment data
+        prev_balance = row['balance']
+        prev_aer = row['true_aer']
+        prev_account = row['best_account']
+
+    # after the loop, we need to record the last segment
+    segments.append({
+        'account': prev_account, 
+        'min_balance': segment_start, 
+        'min_bal_true_aer': start_aer, 
+        'max_balance': prev_balance, 
+        'max_bal_true_aer': prev_aer
+    })
+
+
+
+    
+    balance_segment = pd.DataFrame(segments)
+        
+    return balance_segment
 
 if __name__ == "__main__":
     main()
