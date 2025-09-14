@@ -1,11 +1,44 @@
 import numpy as np
 import pandas as pd
-from collections import Counter
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
 from tax_calculator import calculate_income_tax
 
 def main(): 
+    '''
+    Main function to run the saving interest analysis. 
+    1. Get user inputs: non-saving income, current balance
+    2. Calculate the best account under the current balance
+    3. Simulate the best account by balance range
+    4. Plot the true AER by balance for each account
+
+    Variables: 
+    - non_saving_income: float, user's non-saving income (e.g., salary, rental income)
+    - current_balance: float, user's current saving account balance
+    - accounts: list of tuples, each tuple contains account name and a dictionary of account details
+        - aer: float, annual equivalent rate (interest rate)
+        - monthly_fee: float, monthly fee for the account
+        - isa: bool, whether the account is an ISA (tax-free) account
+    - lower: int, lower bound of balance range for simulation
+    - upper: int, upper bound of balance range for simulation
+    - range_step: int, step size for balance range simulation (default: 100)
+
+    True AER calculation:
+    1. Calculate annual interest: balance * aer
+    2. If not ISA, calculate tax on interest and subtract from annual interest, non_saving_income is used to determine tax rate
+    3. Calculate annual fee: monthly_fee * 12
+    4. Calculate true annual interest: annual interest - tax - annual fee
+    5. Calculate true AER: true annual interest / balance
+    6. Return true AER
+    '''
+    print('Welcome to the UK Saving Interest Analysis Tool!')
+    print('This tool helps you find the best saving account based on your income and balance.')
+    print('You can compare different accounts and see how taxes and fees affect your returns.')
+    print('Let\'s get started!')
+    print('')
+    # basic user inputs
+
     non_saving_income = input(
             'Enter your non-saving income (e.g., salary, rental income) in £ (default: £25,000): '
         )
@@ -27,23 +60,26 @@ def main():
     if current_balance <= 0: 
         raise ValueError('Current balance must be greater than zero. ')
 
+    # saving accounts info
     accounts = [
-        ('monzo', {'aer': 0.0325, 'monthly_fee': 0, 'isa': False}),
-        ('barclays_rainy_day', {'aer': 0.0461, 'monthly_fee': 5, 'isa': False}), 
-        ('monzo_perks', {'aer': 0.0385, 'monthly_fee': 7, 'isa': False}), 
-        ('barclays_1_yr_flexible_cash_isa', {'aer': 0.0385, 'monthly_fee': 0, 'isa': True})
+        ('monzo', {'aer': 0.03, 'monthly_fee': 0, 'isa': False}),
+        ('barclays_rainy_day', {'aer': 0.0428, 'monthly_fee': 5, 'isa': False}), 
+        ('monzo_perks', {'aer': 0.035, 'monthly_fee': 7, 'isa': False}), 
+        ('barclays_1_yr_flexible_cash_isa', {'aer': 0.037, 'monthly_fee': 0, 'isa': True})
     ]
 
     df = get_accounts_df(accounts, current_balance, non_saving_income)
 
-    # 1. find best account under the current balance
+    # return reuslts
+    ## 1. find best account under the current balance
     print('=======================')
+    print('1. Best account under the current balance')
     print(f'With the current balance of £{current_balance}, the best account is: ')
     print(df.loc[df['true_aer'].idxmax(), 'account'])
     print(f"True AER: {df['true_aer'].max():.4%}")
     print(f'True annual return: £{df.loc[df["true_aer"].idxmax(), "true_annual_return"]:.2f}')
     
-    ## tax breakdown for the best account
+    ### tax breakdown for the best account
     print('-----------------------')
     print('Tax breakdown for the best account: ')
     best_account_pre_tax_interest = df.loc[df['true_aer'].idxmax(), 'pre_tax_annual_interest']
@@ -51,18 +87,21 @@ def main():
     tax_details = calculate_income_tax(non_saving_income, taxable)['tax_breakdown']
     print(tax_details)
 
-    ## return all accounts details
+    ### return all accounts details
     print('-----------------------')
     print('Accounts by True AER: ')
     print(df.sort_values(by='true_aer', ascending=False))
     print('')
 
-    # 2. multiple balance simulation to find the best account by balance
+    ## 2. multiple balance simulation to find the best account by balance
     print('=======================')
-    print('Compare accounts by balance range')
-    ## select balance range
+    print('2. Compare accounts by balance range')
+
+    continue_script() # ask user if they want to continue to part 2
+        
+    ### select balance range
     lower = input('Enter the lower bound of balance range in £ (default: £1,000): ')
-    upper = input('Enter the upper bound of balance range in £ (default: £25,000): ')
+    upper = input('Enter the upper bound of balance range in £ (default: £5,000): ')
     
     if lower == '': 
         lower = 1000
@@ -70,7 +109,7 @@ def main():
         lower = int(lower)
 
     if upper == '': 
-        upper = 25000+1
+        upper = 5000+1
     else: 
         upper = int(upper) + 1
 
@@ -79,47 +118,23 @@ def main():
     if lower >= upper: 
         raise ValueError('Lower bound must be less than upper bound. ')
 
-    ## calculate the best account by balance
+    ### calculate the best account by balance
     balance_sim = simulate_balances(accounts, non_saving_income, lower, upper) 
 
     print(best_acc_by_bal_segment(balance_sim))
 
-    # ploting the true AER by balance for each account        
+    ## 3. ploting the true AER by balance for each account
+    print('=======================')
+    print('3. Plotting True AER by Balance for Each Account')
 
-    return_by_balance = []
+    continue_script() # ask user if they want to continue to part 2
 
-    balances = np.arange(lower, upper, 100)
-    df = pd.DataFrame.from_dict(dict(accounts), orient="index").reset_index()
-    df.columns = ["account", "aer", "monthly_fee", "isa"]
+    print('Please wait, the plot will be shown on a new window. ')
 
-    # print(df)
+    ploting_df = reshape_returns(accounts, non_saving_income, lower, upper)
     
-    for balance in balances: 
-        row = {'balance': balance}
-        for account, details in accounts: 
-            row[account] = get_true_aer(
-            non_saving_income, 
-            balance, 
-            details['monthly_fee'],
-            details['aer'], 
-            details['isa']
-    )
-        # for account in accounts: 
-        #     row[account] = get_true_aer(non_saving_income, 
-        #                                 balance, 
-        #                                 df[df['account'] == account]['monthly_fee'].values[0],
-        #                                 df[df['account'] == account]['aer'].values[0], 
-        #                                 df[df['account'] == account]['isa'].values[0])
-        return_by_balance.append(row)
-
-    return_by_balance = pd.DataFrame(return_by_balance)
-
-    return_by_balance_unpivoted = return_by_balance.melt(id_vars=['balance'],
-                                                        var_name='account', 
-                                                        value_name='true_aer')
-
     plt.figure(figsize=(12, 6))
-    sns.lineplot(data=return_by_balance_unpivoted,
+    sns.lineplot(data=ploting_df,
              x='balance', 
              y='true_aer', 
              hue='account', 
@@ -137,7 +152,7 @@ def get_true_aer(
         non_saving_income: float, balance: float, monthly_fee: float, aer: float, isa: bool
         ) -> float:  
     '''
-    Calculate the tru AER after tax and fees. 
+    Calculate the true AER after tax and fees. 
     '''
 
     annual_interest = balance * aer
@@ -273,6 +288,49 @@ def best_acc_by_bal_segment(balance_sim: pd.DataFrame) -> pd.DataFrame:
     balance_segment = pd.DataFrame(segments)
         
     return balance_segment
+
+def reshape_returns(
+        accounts: list[tuple], 
+        non_saving_income: float, 
+        lower: int, 
+        upper: int, 
+        range_step: int = 100
+        ) -> pd.DataFrame:
+    '''
+    Get long-format returns for plotting. 
+    Instead of finding the right account by balance, this function returns the true AER for each account by balance.
+    '''
+
+    df_accounts = pd.DataFrame.from_dict(dict(accounts), orient='index').reset_index()
+    df_accounts.columns = ['account', 'aer', 'monthly_fee', 'isa']
+
+    balances = np.arange(lower, upper, range_step)
+
+    records = []
+    for balance in balances: 
+        for _, row in df_accounts.iterrows(): 
+            records.append({
+                'balance': balance,
+                'account': row['account'],
+                'true_aer': get_true_aer(
+                    non_saving_income, 
+                    balance, 
+                    row['monthly_fee'], 
+                    row['aer'], 
+                    row['isa']
+                    )
+            })
+    return pd.DataFrame(records)
+
+def continue_script(): 
+    cont = input('Do you want to continue? (y/n): ').strip().lower()
+    while True: 
+        if cont == 'y': 
+            return True
+        elif cont == 'n': 
+            sys.exit('Exiting the program. ')
+        else: 
+            cont = input('Invalid input. Please enter y or n: ')
 
 if __name__ == "__main__":
     main()
