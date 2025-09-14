@@ -1,8 +1,6 @@
 # UK Saving Interest Analysis
 A Python tool for analyzing savings account interest rates, tax implications, and effective returns in the UK. 
 
-*disclaimer: This is a personal project for research purposes and should not be used as financial advice.*
-
 ## ✅ Use Case
 Find the best saving account at this moment based on the user's income and saving account balance, so they can decide where to put their money.
 
@@ -45,3 +43,9 @@ Find the best saving account at this moment based on the user's income and savin
 - Support multiple tax years
 - Frontend interface
 - More comprehensive test coverage
+
+## ⚠️ Disclaimer
+This application is for educational and research purposes only. It is not intended as financial advice. Always do your own research and consult with financial professionals before making investment decisions.
+
+## License
+This project is licensed under the MIT License. See the LICENSE file for details.
