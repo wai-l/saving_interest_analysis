@@ -62,10 +62,11 @@ def main():
 
     # saving accounts info
     accounts = [
-        ('monzo', {'aer': 0.03, 'monthly_fee': 0, 'isa': False}),
-        ('barclays_rainy_day', {'aer': 0.0428, 'monthly_fee': 5, 'isa': False}), 
+        ('monzo', {'aer': 0.0275, 'monthly_fee': 0, 'isa': False}),
+        ('barclays_rainy_day', {'aer': 0.0421, 'monthly_fee': 5, 'isa': False}), 
         ('monzo_perks', {'aer': 0.035, 'monthly_fee': 7, 'isa': False}), 
-        ('barclays_1_yr_flexible_cash_isa', {'aer': 0.037, 'monthly_fee': 0, 'isa': True})
+        ('barclays_1_yr_flexible_cash_isa', {'aer': 0.04, 'monthly_fee': 0, 'isa': True}), 
+        ('hsbc_online_saver', {'aer': 0.035, 'monthly_fee': 0, 'isa': False})
     ]
 
     df = get_accounts_df(accounts, current_balance, non_saving_income)
